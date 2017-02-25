@@ -59,6 +59,17 @@ class AirCargoProblem(Problem):
             '''
             loads = []
             # TODO create all load ground actions from the domain Load action
+            for a in self.airports:
+                for p in self.planes:
+                    for c in self.cargos:
+                        precond_pos = [expr("At({}, {})".format(c, a)), expr("At({}, {})".format(p, a)), ]
+                        precond_neg = []
+                        effect_add = [expr("In({}, {})".format(c, p))]
+                        effect_rem = [expr("At({}, {})".format(c, a))]
+                        load = Action(expr("Load({}, {}, {})".format(c, p, a)),
+                                      [precond_pos, precond_neg],
+                                      [effect_add, effect_rem])
+                        loads.append(load)
             return loads
 
         def unload_actions():
@@ -68,6 +79,17 @@ class AirCargoProblem(Problem):
             '''
             unloads = []
             # TODO create all Unload ground actions from the domain Unload action
+            for a in self.airports:
+                for p in self.planes:
+                    for c in self.cargos:
+                        precond_pos = [expr("In({}, {})".format(c, p)), expr("At({}, {})".format(p, a)), ]
+                        precond_neg = []
+                        effect_add = [expr("At({}, {})".format(c, a))]
+                        effect_rem = [expr("In({}, {})".format(c, p))]
+                        unload = Action(expr("Unload({}, {}, {})".format(c, p, a)),
+                                        [precond_pos, precond_neg],
+                                        [effect_add, effect_rem])
+                        unloads.append(unload)
             return unloads
 
         def fly_actions():
@@ -103,6 +125,14 @@ class AirCargoProblem(Problem):
         """
         # TODO implement
         possible_actions = []
+
+        kb = PropKB()
+        kb.tell(decode_state(state, self.state_map).pos_sentence())
+
+        # add all possible actions into list (all actions with satisfied preconditions of current state)
+        for action in self.actions_list:
+            if action.check_precond(kb, action.args):
+                possible_actions.append(action)
         return possible_actions
 
     def result(self, state: str, action: Action):
@@ -115,7 +145,29 @@ class AirCargoProblem(Problem):
         :return: resulting state after action
         """
         # TODO implement
+
+
         new_state = FluentState([], [])
+
+        for possible_action in self.actions(state):
+            if action.name == possible_action.name and action.args == possible_action.args:
+
+                # create list of positive and negative states before apply action
+                pos_state = decode_state(state, self.state_map).pos
+                neg_state = decode_state(state, self.state_map).neg
+
+                # reproduce def act() but include also negative states update
+                for new_state_pos in action.effect_add:
+                    pos_state.append(new_state_pos)
+                    neg_state.remove(new_state_pos)
+
+                for new_state_neg in action.effect_rem:
+                    neg_state.append(new_state_neg)
+                    pos_state.remove(new_state_neg)
+
+                new_state = FluentState(pos_state, neg_state)
+                return encode_state(new_state, self.state_map)
+
         return encode_state(new_state, self.state_map)
 
     def goal_test(self, state: str) -> bool:
@@ -156,8 +208,21 @@ class AirCargoProblem(Problem):
         executed.
         '''
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
-        count = 0
-        return count
+
+        #set initial value equal to total lenght of goal states
+        goal_states = self.goal
+        MinGoalStates = len(goal_states)
+
+        kb = PropKB()
+        kb.tell(decode_state(node.state, self.state_map).pos_sentence())
+
+
+        for NodeState in kb.clauses:
+            if NodeState in goal_states:
+                # if one of node state equals goal state, reduce MinGoalStates by one and remove this state from goal_states list
+                MinGoalStates -= 1
+                goal_states.remove(NodeState)
+        return MinGoalStates
 
 
 def air_cargo_p1() -> AirCargoProblem:
@@ -186,10 +251,92 @@ def air_cargo_p1() -> AirCargoProblem:
 
 
 def air_cargo_p2() -> AirCargoProblem:
-    # TODO implement Problem 2 definition
-    pass
+    cargos = ['C1', 'C2', 'C3']
+    planes = ['P1', 'P2', 'P3']
+    airports = ['JFK', 'SFO', 'ATL']
+    pos = [expr('At(C1, SFO)'),
+           expr('At(C2, JFK)'),
+           expr('At(C3, ATL)'),
+           expr('At(P1, SFO)'),
+           expr('At(P2, JFK)'),
+           expr('At(P3, ATL)'),
+           ]
+    neg = [expr('At(C1, JFK)'),
+           expr('At(C1, ATL)'),
+           expr('At(C2, SFO)'),
+           expr('At(C2, ATL)'),
+           expr('At(C3, JFK)'),
+           expr('At(C3, SFO)'),
+           expr('In(C1, P1)'),
+           expr('In(C1, P2)'),
+           expr('In(C1, P3)'),
+           expr('In(C2, P1)'),
+           expr('In(C2, P2)'),
+           expr('In(C2, P3)'),
+           expr('In(C3, P1)'),
+           expr('In(C3, P2)'),
+           expr('In(C3, P3)'),
+           expr('At(P1, JFK)'),
+           expr('At(P1, ATL)'),
+           expr('At(P2, SFO)'),
+           expr('At(P2, ATL)'),
+           expr('At(P3, JFK)'),
+           expr('At(P3, SFO)'),
+           ]
+    init = FluentState(pos, neg)
+    goal = [expr('At(C1, JFK)'),
+            expr('At(C2, SFO)'),
+            expr('At(C3, SFO)'),
+            ]
+    return AirCargoProblem(cargos, planes, airports, init, goal)
 
 
 def air_cargo_p3() -> AirCargoProblem:
     # TODO implement Problem 3 definition
-    pass
+    cargos = ['C1', 'C2', 'C3', 'C4']
+    planes = ['P1', 'P2']
+    airports = ['JFK', 'SFO', 'ATL', 'ORD']
+    pos = [expr('At(C1, SFO)'),
+           expr('At(C2, JFK)'),
+           expr('At(C3, ATL)'),
+           expr('At(C4, ORD)'),
+           expr('At(P1, SFO)'),
+           expr('At(P2, JFK)'),
+           ]
+    # Cargos location
+    neg = [expr('At(C1, JFK)'),
+           expr('At(C1, ATL)'),
+           expr('At(C1, ORD)'),
+           expr('At(C2, SFO)'),
+           expr('At(C2, ATL)'),
+           expr('At(C2, ORD)'),
+           expr('At(C3, JFK)'),
+           expr('At(C3, SFO)'),
+           expr('At(C3, ORD)'),
+           expr('At(C4, JFK)'),
+           expr('At(C4, SFO)'),
+           expr('At(C4, ATL)'),
+           # Cargos arent in any plane
+           expr('In(C1, P1)'),
+           expr('In(C1, P2)'),
+           expr('In(C2, P1)'),
+           expr('In(C2, P2)'),
+           expr('In(C3, P1)'),
+           expr('In(C3, P2)'),
+           expr('In(C4, P1)'),
+           expr('In(C4, P2)'),
+           # Planes location
+           expr('At(P1, JFK)'),
+           expr('At(P1, ATL)'),
+           expr('At(P1, ORD)'),
+           expr('At(P2, ATL)'),
+           expr('At(P2, ORD)'),
+           expr('At(P2, SFO)'),
+           ]
+    init = FluentState(pos, neg)
+    goal = [expr('At(C1, JFK)'),
+            expr('At(C2, SFO)'),
+            expr('At(C3, JFK)'),
+            expr('At(C4, SFO)'),
+            ]
+    return AirCargoProblem(cargos, planes, airports, init, goal)
