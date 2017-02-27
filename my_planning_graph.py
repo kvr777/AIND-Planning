@@ -316,16 +316,17 @@ class PlanningGraph():
 
         S_lev_literals = self.s_levels[level]
 
+        #determine what actions to add
         for poss_act in self.all_actions:
             poss_node = PgNode_a(poss_act)
             if set(poss_node.prenodes).issubset(S_lev_literals):
                 self.a_levels[level].add(poss_node)
+                # connect the nodes to the previous S literal level
                 for lit in S_lev_literals:
                     if lit in poss_node.prenodes:
                         lit.children.add(poss_node)
                         poss_node.parents.add(lit)
-
-        # return None
+          # return None
 
     def add_literal_level(self, level):
         ''' add an S (literal) level to the Planning Graph
@@ -346,17 +347,16 @@ class PlanningGraph():
         #   parent sets of the S nodes
 
         self.s_levels.append(set())
-
         previous_level_act = self.a_levels[level-1]
 
-
+        # 1. determine what literals to add
         for lev in previous_level_act:
             effects_by_act = lev.effnodes
             for effect in effects_by_act:
                 self.s_levels[level].add(effect)
+                # connect the nodes
                 lev.children.add(effect)
                 effect.parents.add(lev)
-
 
     def update_a_mutex(self, nodeset):
         ''' Determine and update sibling mutual exclusion for A-level nodes
@@ -426,9 +426,6 @@ class PlanningGraph():
                 if a1rem == a2add:
                     return True
 
-        # elif node_a2.action.effect_add in node_a1.action.effect_rem:
-        #     return True
-
         return False
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
@@ -481,13 +478,6 @@ class PlanningGraph():
         '''
 
         # TODO test for Competing Needs between nodes
-
-        # for node1_par in ( node_a1.action.precond_pos or node_a1.action.precond_neg):
-        #     for node2_par in (node_a2.action.precond_pos or node_a2.action.precond_neg):
-        #         if node1_par.is_mutex(node2_par):
-        #             return True
-        # return False
-
 
         for node1_par in  node_a1.parents :
             for node2_par in node_a2.parents:
@@ -565,6 +555,12 @@ class PlanningGraph():
         '''
         level_sum = 0
         # TODO implement
+
+        # The logic is following: first we define the depth of graph. Then we first we copy goal list
+        # After, we begin to search from the first node of graph completed goals. When we find the goal,
+        # we add the level (cost) to our counter and exclude the goal from our goal list
+        # We repeat this steps till we find and process all goal clauses. Before to iterate new clause on level, we
+        #check wheter all goals were processed to avoid excessive computations.
 
         current_depth = (len(self.s_levels))
         goal_to_explore = self.problem.goal.copy()

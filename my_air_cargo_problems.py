@@ -209,19 +209,28 @@ class AirCargoProblem(Problem):
         '''
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
 
-        #set initial value equal to total lenght of goal states
-        goal_states = self.goal
+        #The logic is following: first we copy goal list. Then we count the number of goals and assign this number
+        #to counter (it is the maximum number of steps to reach the goal)
+        #After, we apply backward logic: if in the current node the goal is satisfied, we deduct one from our counter
+        #We repeat this step till we find and process all goal clauses.
+
+        #set initial value equal to total lenght of goal states and form list of target states
+        goal_states = self.goal.copy()
         MinGoalStates = len(goal_states)
 
+        # retreive states of current node
         kb = PropKB()
         kb.tell(decode_state(node.state, self.state_map).pos_sentence())
 
 
         for NodeState in kb.clauses:
-            if NodeState in goal_states:
-                # if one of node state equals goal state, reduce MinGoalStates by one and remove this state from goal_states list
-                MinGoalStates -= 1
-                goal_states.remove(NodeState)
+            if len(goal_states)>0:
+                if NodeState in goal_states:
+                    # if one of node state equals goal state, reduce MinGoalStates by one and remove this state from goal_states list
+                    MinGoalStates -= 1
+                    goal_states.remove(NodeState)
+                else:
+                    return MinGoalStates
         return MinGoalStates
 
 
